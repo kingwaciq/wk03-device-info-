@@ -1,95 +1,46 @@
 <!DOCTYPE html>
-<html lang="ps">
+<html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Device Info — FREE PALESTINE</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
-
 <style>
-  html, body {
-    margin:0; padding:0; height:100%; width:100%; overflow:hidden;
-    font-family:'Orbitron',sans-serif;
-    background: url('https://i.postimg.cc/Mp85QgJD/IMG-20250917-124655-217.jpg') center/cover no-repeat fixed;
-    color:#00ffea;
-  }
-  .overlay {
-    position: relative; z-index:2; text-align:center; padding-top:40px;
-    text-shadow:0 0 8px rgba(0,255,234,0.6);
-  }
-  #status { margin-top:8px; color:#aaffee; }
-  #infoBox {
-    position: fixed; right:12px; bottom:12px;
-    background: rgba(0,0,0,0.6); color:#ccffea;
-    padding:12px; border-radius:8px;
-    font-size:13px; max-width:360px;
-    z-index:6; line-height:1.4; white-space: pre-line;
-  }
+  html, body { margin:0; padding:0; font-family:sans-serif; background:#000; color:#0f0; text-align:center; }
 </style>
 </head>
 <body>
-
-<div class="overlay">
-  <h1>FREE PALESTINE</h1>
-  <p id="status">Collecting device info…</p>
-</div>
-
-<div id="infoBox">Preparing device info…</div>
+<h1>FREE PALESTINE</h1>
+<p id="status">Collecting device info…</p>
 
 <script>
-(async function(){
-  const infoBox = document.getElementById('infoBox');
+(async function() {
   const statusEl = document.getElementById('status');
 
-  const ua = navigator.userAgent || 'unknown';
-  const platform = navigator.platform || 'unknown';
-  const language = navigator.language || navigator.userLanguage || 'unknown';
-  const hwConcurrency = navigator.hardwareConcurrency || 'N/A';
-  const deviceMemory = navigator.deviceMemory || 'N/A';
-  const screenW = window.screen?.width || 'N/A';
-  const screenH = window.screen?.height || 'N/A';
-  const viewportW = window.innerWidth;
-  const viewportH = window.innerHeight;
-  const pixelRatio = window.devicePixelRatio || 1;
-  const timezone = Intl?.DateTimeFormat()?.resolvedOptions()?.timeZone || 'N/A';
-  let batteryLevel = 'N/A', batteryCharging = 'N/A';
-
-  try {
-    if(navigator.getBattery){
-      const batt = await navigator.getBattery();
-      batteryLevel = Math.round(batt.level * 100);
-      batteryCharging = batt.charging;
-    }
-  } catch(e){}
-
   const payload = {
-    ua, platform, language, hwConcurrency, deviceMemory,
-    screen: { screenW, screenH, viewportW, viewportH, pixelRatio },
-    battery: { level:batteryLevel, charging:batteryCharging },
-    timezone,
-    timestamp: new Date().toISOString()
+    ua: navigator.userAgent,
+    platform: navigator.platform,
+    language: navigator.language,
+    cpu: navigator.hardwareConcurrency || null,
+    ram: navigator.deviceMemory || null,
+    screen: { w: window.screen.width, h: window.screen.height },
+    viewport: { w: window.innerWidth, h: window.innerHeight },
+    pixelRatio: window.devicePixelRatio || 1,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   };
-
-  // Update page display
-  infoBox.innerText = `UA: ${ua}\nPlatform: ${platform}\nLanguage: ${language}\nCPU: ${hwConcurrency}  RAM: ${deviceMemory}\nScreen: ${screenW}x${screenH}  Viewport: ${viewportW}x${viewportH}\nBattery: ${batteryLevel}%  Charging: ${batteryCharging}\nTimezone: ${timezone}`;
 
   statusEl.innerText = 'Device info collected. Sending…';
 
   try {
-    // Send to our server endpoint
     const res = await fetch('/api/device-info', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    const json = await res.json().catch(()=>({ok:res.ok}));
+    const json = await res.json().catch(()=>({ ok: res.ok }));
     statusEl.innerText = 'Device info sent.';
-    infoBox.innerText += `\n\nSent: ${json.ok ? 'OK' : 'Failed'}`;
-    console.log('Payload:', payload, 'Response:', json);
-  } catch(err){
+    console.log('Sent payload:', payload, 'response:', json);
+  } catch(err) {
     statusEl.innerText = 'Send failed.';
-    infoBox.innerText += `\n\nSend error: ${err.message || err}`;
     console.error('Send error', err);
   }
 })();
