@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ps">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Device Info — FREE PALESTINE</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+
+<style>
+  html,body{
+    margin:0;padding:0;height:100%;width:100%;overflow:hidden;
+    font-family:'Orbitron',sans-serif;
+    background: url('https://i.postimg.cc/Mp85QgJD/IMG-20250917-124655-217.jpg') center/cover no-repeat fixed;
+  }
+  .overlay { position: relative; z-index: 2; text-align:center; padding-top:40px; color:#00ffea; text-shadow:0 0 8px rgba(0,255,234,0.6); }
+  #status { color:#aaffee; margin-top:8px; }
+  #infoBox { position: fixed; right:12px; bottom:12px; background: rgba(0,0,0,0.6); color:#ccffea; padding:12px; border-radius:8px; font-size:13px; max-width:320px; z-index:6; line-height:1.4; white-space: pre-line; }
+</style>
+</head>
+<body>
+
+<div class="overlay">
+  <h1>FREE PALESTINE</h1>
+  <p id="status">Collecting device info…</p>
+</div>
+
+<div id="infoBox">Preparing device info…</div>
+
+<script>
+(async function(){
+  const infoBox = document.getElementById('infoBox');
+  const statusEl = document.getElementById('status');
+
+  function safe(o){ try { return JSON.parse(JSON.stringify(o)); } catch(e){ return String(o); } }
+
+  const ua = navigator.userAgent || 'unknown';
+  const platform = navigator.platform || 'unknown';
+  const language = navigator.language || navigator.userLanguage || 'unknown';
+  const hwConcurrency = navigator.hardwareConcurrency || null;
+  const deviceMemory = navigator.deviceMemory || null;
+
+  const screenW = window.screen && window.screen.width ? window.screen.width : null;
+  const screenH = window.screen && window.screen.height ? window.screen.height : null;
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+  const pixelRatio = window.devicePixelRatio || 1;
+
+  let connection = null;
+  try { connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null; } catch(e){ connection = null; }
+  const connectionInfo = connection ? { effectiveType: connection.effectiveType || null, downlink: connection.downlink || null, rtt: connection.rtt || null, saveData: connection.saveData || null } : null;
+
+  const timezone = (Intl && Intl.DateTimeFormat) ? Intl.DateTimeFormat().resolvedOptions().timeZone : null;
+  const timestamp = new Date().toISOString();
+
+  let batteryLevel = null, batteryCharging = null;
+  try {
+    if (navigator.getBattery) {
+      const batt = await navigator.getBattery();
+      batteryLevel = Math.round((batt.level || 0) * 100);
+      batteryCharging = !!batt.charging;
+    }
+  } catch(e){}
+
+  let mediaDevices = [];
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    mediaDevices = devices.filter(d => (d.kind && (d.kind.startsWith('vide') || d.kind.startsWith('audio')))).map(d => ({ kind: d.kind, label: d.label || 'unknown', deviceId: d.deviceId }));
+  } catch(e){}
+
+  const payload = {
+    ua, platform, language, hwConcurrency, deviceMemory,
+    screen: { screenW, screenH, viewportW, viewportH, pixelRatio },
+    connection: connectionInfo, timezone, timestamp,
+    battery: { level: batteryLevel, charging: batteryCharging },
+    mediaDevices
+  };
+
+  infoBox.innerText =
+    `UA: ${ua.split(')')[0]}…\nPlatform: ${platform}\nLanguage: ${language}\nCPU: ${hwConcurrency || 'N/A'}  RAM: ${deviceMemory || 'N/A'}\nScreen: ${screenW}x${screenH}  Viewport: ${viewportW}x${viewportH}\nConnection: ${connectionInfo ? connectionInfo.effectiveType : 'N/A'}\nBattery: ${batteryLevel !== null ? batteryLevel + '%' : 'N/A'}  Charging: ${batteryCharging === null ? 'N/A' : batteryCharging}\nDevices: ${mediaDevices.length}  Timezone: ${timezone || 'N/A'}`;
+
+  statusEl.innerText = 'Device info collected. Sending…';
+
+  try {
+    const res = await fetch('/api/device-info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json().catch(()=>({ ok: res.ok }));
+    statusEl.innerText = 'Device info sent.';
+    infoBox.innerText += `\n\nSent: ${json && json.ok ? 'OK' : JSON.stringify(json).slice(0,120)}`;
+    console.log('Device info payload:', payload, 'response:', json);
+  } catch(err) {
+    statusEl.innerText = 'Send failed.';
+    infoBox.innerText += `\n\nSend error: ${err && err.message ? err.message : err}`;
+    console.error('Send error', err);
+  }
+})();
+</script>
+</body>
+</html> 
